@@ -68,7 +68,7 @@ echo ""
 log "starting serveo SSH tunnel..."
 SERVEO_PORT=${SERVEO_PORT:-22}
 
-autossh -M 0 -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=3" \
+autossh -M 0 -T -N -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=3" \
   -R 0:localhost:$SERVEO_PORT serveo.net &
 
 SERVEO_PID=$!
@@ -79,7 +79,7 @@ if kill -0 $SERVEO_PID 2>/dev/null; then
   warn "check serveo output above for your public SSH address"
 else
   warn "serveo failed, trying fallback (localhost.run)..."
-  ssh -o "StrictHostKeyChecking=no" -R 22:localhost:22 localhost.run &
+  ssh -T -N -o "StrictHostKeyChecking=no" -R 22:localhost:22 localhost.run &
 fi
 
 echo ""
