@@ -1,6 +1,4 @@
 #!/bin/bash
-# vps setup script - ubuntu 22.04
-
 set -e
 
 RED='\033[0;31m'
@@ -11,18 +9,12 @@ NC='\033[0m'
 
 log()  { echo -e "${GREEN}[+]${NC} $1"; }
 warn() { echo -e "${YELLOW}[!]${NC} $1"; }
-err()  { echo -e "${RED}[x]${NC} $1"; exit 1; }
-info() { echo -e "${CYAN}[*]${NC} $1"; }
 
 echo ""
 echo -e "${CYAN}================================${NC}"
 echo -e "${CYAN}   VPS Setup Script by Bisam    ${NC}"
 echo -e "${CYAN}================================${NC}"
 echo ""
-
-if [ "$EUID" -ne 0 ]; then
-  warn "not root, some stuff might fail"
-fi
 
 log "updating packages..."
 apt update -y && apt upgrade -y
@@ -32,21 +24,25 @@ log "installing essentials..."
 apt install -y curl wget git openssh-client openssh-server autossh nano htop net-tools
 log "done installing essentials"
 
-log "starting ssh service..."
-service ssh start || true
-log "ssh running"
+# fix sshd config FIRST before starting
+log "configuring ssh..."
+sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+sed -i 's/PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+# make sure it's in there even if line didn't exist
+grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config || echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+grep -q "^PermitRootLogin yes" /etc/ssh/sshd_config || echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
 
 # set root password
 ROOT_PASS=${ROOT_PASSWORD:-Bisam}
 echo "root:$ROOT_PASS" | chpasswd
 log "root password set"
 
-# allow root ssh login
-sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-sed -i 's/PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-service ssh restart || true
-sed -i "s/#PasswordAuthentication.*/PasswordAuthentication yes/" /etc/ssh/sshd_config
-sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config
+# now start ssh with correct config
+log "starting ssh service..."
+service ssh restart || service ssh start
+log "ssh running"
 
 PUBLIC_IP=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || echo "unknown")
 LOCAL_IP=$(hostname -I | awk '{print $1}')
@@ -86,7 +82,5 @@ echo ""
 log "all done! VPS is ready."
 echo ""
 
-if [ "${KEEP_ALIVE}" = "true" ]; then
-  log "keeping alive..."
-  tail -f /dev/null
-fi
+log "keeping alive..."
+tail -f /dev/null
