@@ -1,12 +1,8 @@
-FROM ubuntu:22.04
+FROM ghcr.io/vevc/ubuntu:25.7.14
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV KEEP_ALIVE=true
-ENV ROOT_PASSWORD=Bisam
+RUN mkdir -p /var/run/sshd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-WORKDIR /app
+EXPOSE 22
 
-COPY setup.sh .
-RUN chmod +x setup.sh
-
-CMD ["bash", "setup.sh"]
+CMD ["/bin/sh", "-c", "echo root:${ROOT_PASSWORD:-Bisam} | chpasswd && /usr/sbin/sshd -D"]
